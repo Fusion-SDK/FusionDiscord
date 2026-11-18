@@ -77,3 +77,42 @@ test("account API rejects malformed backend responses", async (t) => {
     /invalid response/i
   );
 });
+
+test("verified-role service assigns a role only when a configured guild role exists", async (t) => {
+  const originalRoleId = process.env.FUSION_VERIFIED_ROLE_ID;
+  t.after(() => {
+    if (originalRoleId === undefined) delete process.env.FUSION_VERIFIED_ROLE_ID;
+    else process.env.FUSION_VERIFIED_ROLE_ID = originalRoleId;
+  });
+  process.env.FUSION_VERIFIED_ROLE_ID = "verified-role";
+
+  let added = false;
+  const role = { id: "verified-role" };
+  const member = {
+    roles: {
+      cache: { has: () => false },
+      add: async (value) => { assert.equal(value, role); added = true; },
+      remove: async () => { throw new Error("unexpected role removal"); }
+    }
+  };
+  const interaction = {
+    user: { id: "discord-user-id" },
+    inGuild: () => true,
+    guild: {
+      members: { fetch: async () => member },
+      roles: { fetch: async () => role }
+    }
+  };
+  delete require.cache[require.resolve("../src/services/verified-role")];
+  const { syncVerifiedRole } = require("../src/services/verified-role");
+  const result = await syncVerifiedRole(interaction, true);
+  assert.equal(result.updated, true);
+  assert.equal(added, true);
+});
+
+test("verified-role service does not attempt role changes outside a guild", async () => {
+  process.env.FUSION_VERIFIED_ROLE_ID = "verified-role";
+  const { syncVerifiedRole } = require("../src/services/verified-role");
+  const result = await syncVerifiedRole({ inGuild: () => false }, true);
+  assert.deepEqual(result, { updated: false, reason: "not_configured" });
+});
