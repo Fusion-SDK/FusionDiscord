@@ -6,7 +6,7 @@ The official Discord bot for the Fusion community.
 
 - Discord.js bot with slash commands.
 - `/ping` health check.
-- `/account-verify` requests a short-lived one-time code from the trusted Fusion backend.
+- `/account-verify` starts the short-lived one-time-code flow when explicitly enabled; it is disabled by default until the in-game confirmation UI exists.
 - `/account-status` checks the backend link and synchronizes the configured verified role.
 - `/account-unlink` removes the caller's Discord link and synchronizes role removal.
 
