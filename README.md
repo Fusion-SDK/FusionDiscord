@@ -49,7 +49,7 @@ Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backe
 
 ## Development
 
-Run `npm run check` for JavaScript syntax validation and `npm test` for mocked account-linking service and role-sync tests.
+Run `npm run check` for JavaScript syntax validation and `npm test` for mocked account-linking service, role-sync, and feature-gate tests. Keep `FUSION_LINKING_ENABLED=false` until the in-game confirmation UI is deployed.
 
 ## License
 
