@@ -49,7 +49,7 @@ Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backe
 
 ## Development
 
-Run `npm run check` for JavaScript syntax validation.
+Run `npm run check` for JavaScript syntax validation and `npm test` for mocked account-linking service and role-sync tests.
 
 ## License
 
