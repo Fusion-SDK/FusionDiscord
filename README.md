@@ -2,65 +2,54 @@
 
 The official Discord bot for the Fusion community.
 
-Fusion Discord is being developed to provide community utilities and secure linking between Discord identities and Fusion accounts.
+## Features
 
-## Current status
+- Discord.js bot with slash commands.
+- `/ping` health check.
+- `/account-verify` requests a short-lived one-time code from the trusted Fusion backend.
+- `/account-status` checks the backend link and synchronizes the configured verified role.
+- `/account-unlink` removes the caller's Discord link and synchronizes role removal.
 
-- [x] Discord.js client foundation
-- [x] Slash-command deployment script
-- [x] `/ping` health-check command
-- [x] `/account-verify` verification entry point
-- [ ] Secure Discord-to-Fusion account linking backend
-- [ ] Fusion in-game code confirmation
-- [ ] Verified-role synchronization
-- [ ] Account status and unlink commands
+## Account-linking flow
 
-**Important:** Account verification is not active yet. The current `/account-verify` command is informational only; it does not verify accounts or grant roles.
+1. A user runs `/account-verify` in the Fusion Discord server.
+2. The bot sends the immutable Discord user ID to the trusted backend and displays a short-lived code ephemerally.
+3. The user signs in to Fusion in Geometry Dash and enters the code in the official in-game account settings.
+4. The authenticated Fusion client sends the code to the backend. The backend binds the authenticated Fusion user ID to the Discord ID associated with the code.
+5. The user runs `/account-status`; the bot asks the backend for the authoritative link state and assigns the configured verified role.
+6. `/account-unlink` lets the same Discord identity remove its link.
 
-## Requirements
+The code is single-use, expires after a short period, is stored only as a hash, and is rate-limited by the backend. Discord usernames are not used as identity proof. The bot never asks for Fusion passwords or session tokens.
 
-- Node.js 22 or newer
-- A Discord application and bot created in the Discord Developer Portal
-- A bot token and application/client ID
+**Activation requirements:** deploy the Supabase migration and Edge Function in the Fusion backend, configure the function secrets, configure the bot environment variables, invite the bot with Manage Roles, and place the verified role below the bot's highest role. The Geometry Dash client still needs an authenticated in-game Link Discord screen; that UI is not yet implemented in the current client.
 
 ## Setup
 
-1. Clone this repository.
-2. Install dependencies: `npm install`.
-3. Copy `.env.example` to `.env`.
-4. Set `DISCORD_TOKEN` and `DISCORD_CLIENT_ID`.
-5. Invite the bot with the `bot` and `applications.commands` scopes.
-6. Register commands: `npm run deploy-commands`.
-7. Start the bot: `npm start`.
+- Node.js 22+
+- A Discord application and bot
+- `npm install`
+- Copy `.env.example` to `.env` and configure the Discord credentials.
+- Run `npm run deploy-commands` to register slash commands.
+- Run `npm start` to start the bot.
 
-Set `DISCORD_GUILD_ID` to register commands only in a development server. Leave it blank to register globally.
+Set `DISCORD_GUILD_ID` for fast guild-only command registration during development. Leave it blank for global registration.
 
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DISCORD_TOKEN` | Yes | Bot authentication token |
+| `DISCORD_TOKEN` | Yes | Bot token |
 | `DISCORD_CLIENT_ID` | Yes | Discord application ID |
-| `DISCORD_GUILD_ID` | No | Optional development server ID |
+| `DISCORD_GUILD_ID` | No | Development server ID |
+| `FUSION_API_BASE_URL` | Yes for account commands | Supabase Edge Function URL |
+| `FUSION_BOT_API_SECRET` | Yes for account commands | Shared bot-to-backend secret |
+| `FUSION_VERIFIED_ROLE_ID` | No | Role ID assigned after backend confirmation |
 
-Never commit your real `.env` file, bot token, Supabase service-role key, or other credentials. Use your hosting provider's secret manager for production credentials.
-
-## Account verification design
-
-1. A user starts with `/account-verify`.
-2. The bot identifies the member using their immutable Discord user ID, not their editable username.
-3. A trusted backend creates a short-lived, single-use linking challenge.
-4. The user signs in to Fusion and confirms the challenge through an authenticated Fusion interface.
-5. The backend atomically links the Discord ID to the authenticated Fusion account.
-6. The bot grants the configured verified role only after the backend confirms the link.
-
-The bot must never ask users to send their Fusion password or session token in Discord. Pending codes should be random, short-lived, single-use, rate-limited, and stored as hashes. The Discord bot must not contain a Supabase service-role key.
-
-The current Fusion client does not yet provide the in-game account-link confirmation interface, so the full flow cannot be activated until that client and its trusted backend endpoint exist.
+Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backend secret. Store production credentials in the host's secret manager.
 
 ## Development
 
-Run syntax checks with `npm run check`.
+Run `npm run check` for JavaScript syntax validation.
 
 ## License
 
