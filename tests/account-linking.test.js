@@ -116,3 +116,20 @@ test("verified-role service does not attempt role changes outside a guild", asyn
   const result = await syncVerifiedRole({ inGuild: () => false }, true);
   assert.deepEqual(result, { updated: false, reason: "not_configured" });
 });
+
+test("account verification stays disabled until the in-game UI is ready", async () => {
+  const previous = process.env.FUSION_LINKING_ENABLED;
+  delete process.env.FUSION_LINKING_ENABLED;
+  delete require.cache[require.resolve("../src/commands/account-verify")];
+  const command = require("../src/commands/account-verify");
+  let reply = "";
+  const interaction = {
+    deferReply: async () => {},
+    editReply: async (message) => { reply = message; }
+  };
+  await command.execute(interaction);
+  if (previous === undefined) delete process.env.FUSION_LINKING_ENABLED;
+  else process.env.FUSION_LINKING_ENABLED = previous;
+  assert.match(reply, /not enabled yet/i);
+  assert.match(reply, /in-game Link Discord screen/i);
+});
