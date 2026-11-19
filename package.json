@@ -7,9 +7,14 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy-commands": "node scripts/deploy-commands.js",
-    "check": "node --check src/index.js && node --check src/services/anti-raid.js && node --check tests/anti-raid.test.js && node --check scripts/deploy-commands.js && node --check src/services/panel-config.js && node --check src/commands/ping.js && node --check src/commands/account-verify.js && node --check src/commands/account-status.js && node --check src/commands/account-unlink.js && node --check src/services/fusion-api.js && node --check src/services/verified-role.js && node --check tests/account-linking.test.js && node --check tests/panel-config.test.js",
+    "check": "node --check src/index.js && node --check src/services/anti-raid.js && node --check src/services/anti-nuke.js && node --check src/services/auto-mod.js && node --check src/services/join-gate.js && node --check tests/security-suite.test.js && node --check tests/anti-raid.test.js && node --check scripts/deploy-commands.js && node --check src/services/panel-config.js && node --check src/commands/ping.js && node --check src/commands/account-verify.js && node --check src/commands/account-status.js && node --check src/commands/account-unlink.js && node --check src/services/fusion-api.js && node --check src/services/verified-role.js && node --check tests/account-linking.test.js && node --check tests/panel-config.test.js",
     "test": "node --test"
   },
-  "engines": { "node": ">=22.0.0" },
-  "dependencies": { "discord.js": "^14.22.1", "dotenv": "^16.4.7" }
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.22.1",
+    "dotenv": "^16.4.7"
+  }
 }
