@@ -13,7 +13,7 @@ test("guild directory sync sends server details using the bot secret", async () 
     }
   });
   const joinedAt = new Date("2026-11-19T12:00:00.000Z");
-  const count = await sync([{
+  const count = await sync.sync([{
     id: "123456789012345678",
     name: "Fusion Test Server",
     iconURL: () => "https://cdn.discordapp.com/icons/123456789012345678/icon.png",
@@ -32,7 +32,7 @@ test("guild directory sync sends server details using the bot secret", async () 
 
 test("guild directory sync requires the panel endpoint and bot secret", async () => {
   const sync = createGuildDirectorySync({ endpoint: "", secret: "" });
-  await assert.rejects(sync([]), /required/);
+  await assert.rejects(sync.sync([]), /required/);
 });
 
 test("guild directory sync rejects failed API responses", async () => {
@@ -41,5 +41,5 @@ test("guild directory sync rejects failed API responses", async () => {
     secret: "test-secret",
     fetchImpl: async () => ({ ok: false, json: async () => ({ error: "Unauthorized." }) })
   });
-  await assert.rejects(sync([]), /Unauthorized/);
+  await assert.rejects(sync.sync([]), /Unauthorized/);
 });
