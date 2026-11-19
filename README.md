@@ -16,7 +16,7 @@ Set `FUSION_PANEL_API_URL` to the Supabase `panel-admin` Edge Function URL and `
 
 ## Security monitoring
 
-Each monitor is independently opt-in through the bot host environment. Defaults are off.
+Each monitor is configured independently for each Discord server in the Fusion Control Panel. The bot polls each server's settings and caches them briefly. The environment switches below only request the required Discord gateway intents; the per-server dashboard toggles determine where a monitor runs.
 
 | Variable | Required Discord intent | Purpose |
 | --- | --- | --- |
@@ -25,9 +25,9 @@ Each monitor is independently opt-in through the bot host environment. Defaults 
 | `FUSION_ANTI_NUKE_MONITOR=true` | Guilds | Detect bursts of channel/role creation or deletion, bans, and webhook updates. |
 | `FUSION_AUTOMOD_MONITOR=true` | Guild Messages + Message Content intents | Flag message bursts, repeated messages, and mention floods. |
 
-These monitors log alerts to the bot process output. They do not yet post to a configured Discord log channel. Configure the corresponding privileged intents in the Discord Developer Portal before enabling the relevant feature. Grant only the permissions needed by the bot.
+Alerts can be sent to the configured per-server alert channel. The bot needs permission to view that channel and send messages. The monitors do not automatically punish members, delete messages, or change server permissions. Configure the corresponding privileged intents in the Discord Developer Portal before enabling the relevant feature. Grant only the permissions needed by the bot.
 
-Anti-nuke signals are event-rate heuristics, not proof of malicious intent or actor attribution. A legitimate moderation event or server reorganization can trigger an alert. Keep a human moderator in the loop. Per-guild dashboard configuration, audit-log attribution, log-channel delivery, and explicit response controls are follow-up integration work.
+Anti-nuke signals are event-rate heuristics, not proof of malicious intent or actor attribution. A legitimate moderation event or server reorganization can trigger an alert. Keep a human moderator in the loop. Per-guild settings and alert-channel routing are managed in the companion Fusion-Bot-Panel repository. Audit-log actor attribution and explicit response controls remain future integration work.
 
 ## Account linking
 
