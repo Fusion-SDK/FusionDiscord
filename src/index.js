@@ -24,10 +24,10 @@ const client = new Client({ intents });
 const { createAntiRaidMonitor } = require("./services/anti-raid");
 const { createAntiNukeMonitor } = require("./services/anti-nuke");
 const { createAutoModMonitor } = require("./services/auto-mod");
-const { inspectMember } = require("./services/join-gate");
+const { inspectMember } = require("./services/join-gate");\nconst { createGuildSecurityClient } = require("./services/guild-security");
 const antiRaid = createAntiRaidMonitor();
 const antiNuke = createAntiNukeMonitor();
-const autoMod = createAutoModMonitor();
+const autoMod = createAutoModMonitor();\nconst guildSecurity = createGuildSecurityClient();\nconst antiRaidByGuild = new Map();\nconst antiNukeByGuild = new Map();\nconst autoModByGuild = new Map();\nconst securityConfigKeys = new Map();\n\nfunction monitorFor(map, guildId, config, factory, key) {\n  const fingerprint = JSON.stringify(config);\n  if (securityConfigKeys.get(key + ":" + guildId) !== fingerprint) {\n    map.set(guildId, factory());\n    securityConfigKeys.set(key + ":" + guildId, fingerprint);\n  }\n  return map.get(guildId);\n}\n\nasync function sendSecurityAlert(guildId, channelId, content) {\n  if (!channelId) return;\n  try {\n    const channel = await client.channels.fetch(channelId);\n    if (channel?.isTextBased() && typeof channel.send === "function") {\n      await channel.send({ content, allowedMentions: { parse: [] } });\n    }\n  } catch (error) {\n    console.error("[SECURITY] Could not send alert for guild " + guildId + ":", error.message);\n  }\n}
 client.commands = new Collection();
 client.fusionConfig = DEFAULT_CONFIG;
 
@@ -77,21 +77,46 @@ client.once(Events.ClientReady, async (readyClient) => {
   setInterval(refreshPanelConfig, 60_000).unref();
 });
 
-client.on(Events.GuildMemberAdd, (member) => {
-  if (antiRaidEnabled) {
-    const result = antiRaid.recordJoin(member.guild.id);
-    if (result.detected) console.warn("[ANTI-RAID] Join spike in guild " + member.guild.id + ": " + result.count + " joins/" + result.windowMs + "ms.");
-  }
-  if (joinGateEnabled) {
-    const result = inspectMember(member);
-    if (result.flagged) console.warn("[JOIN-GATE] New member flagged in guild " + member.guild.id + ": " + result.reasons.join(", ") + ".");
+client.on(Events.GuildMemberAdd, async (member) => {
+  try {
+    const config = await guildSecurity.get(member.guild.id);
+    if (antiRaidEnabled && config.antiRaid.enabled) {
+      const monitor = monitorFor(antiRaidByGuild, member.guild.id, config.antiRaid,
+        () => createAntiRaidMonitor({ threshold: config.antiRaid.joinThreshold, windowMs: config.antiRaid.windowSeconds * 1000 }), "raid");
+      const result = monitor.recordJoin(member.guild.id);
+      if (result.detected) await sendSecurityAlert(member.guild.id, config.antiRaid.alertChannelId,
+        "⚠️ Anti-Raid: detected " + result.count + " joins within " + config.antiRaid.windowSeconds + " seconds. No automatic action was taken.");
+    }
+    if (joinGateEnabled && config.joinGate.enabled) {
+      const result = inspectMember(member, {
+        minAccountAgeMs: config.joinGate.minimumAccountAgeDays * 24 * 60 * 60 * 1000,
+        flagBots: config.joinGate.flagBots
+      });
+      if (result.flagged) await sendSecurityAlert(member.guild.id, config.joinGate.alertChannelId,
+        "⚠️ Join Gate: a new member matched: " + result.reasons.join(", ") + ". No automatic action was taken.");
+    }
+  } catch (error) {
+    console.error("[SECURITY] Join checks failed for guild " + member.guild.id + ":", error.message);
   }
 });
 
-client.on(Events.MessageCreate, (message) => {
+client.on(Events.MessageCreate, async (message) => {
   if (!autoModEnabled || !message.guild) return;
-  const flags = autoMod.inspect(message);
-  if (flags.length) console.warn("[AUTOMOD] Message flagged in guild " + message.guild.id + " by user " + message.author.id + ": " + flags.join(", ") + ".");
+  try {
+    const config = await guildSecurity.get(message.guild.id);
+    if (!config.autoMod.enabled) return;
+    const monitor = monitorFor(autoModByGuild, message.guild.id, config.autoMod,
+      () => createAutoModMonitor({
+        messageLimit: config.autoMod.messageLimit,
+        windowMs: config.autoMod.windowSeconds * 1000,
+        mentionLimit: config.autoMod.mentionLimit
+      }), "automod");
+    const flags = monitor.inspect(message);
+    if (flags.length) await sendSecurityAlert(message.guild.id, config.autoMod.alertChannelId,
+      "⚠️ AutoMod: detected " + flags.join(", ") + " from a server member. No automatic action was taken.");
+  } catch (error) {
+    console.error("[SECURITY] AutoMod check failed for guild " + message.guild.id + ":", error.message);
+  }
 });
 
 const antiNukeEvents = [
@@ -103,19 +128,28 @@ const antiNukeEvents = [
   [Events.WebhooksUpdate, "webhookUpdate"]
 ];
 for (const [eventName, action] of antiNukeEvents) {
-  client.on(eventName, (target) => {
+  client.on(eventName, async (target) => {
     if (!antiNukeEnabled) return;
     const guild = target.guild ?? target;
     if (!guild?.id) return;
-    const result = antiNuke.record(guild.id, action);
-    if (result.detected) console.warn("[ANTI-NUKE] Repeated " + action + " events in guild " + guild.id + ": " + result.count + "/" + result.windowMs + "ms. Monitor-only; no automatic action taken.");
+    try {
+      const config = await guildSecurity.get(guild.id);
+      if (!config.antiNuke.enabled) return;
+      const monitor = monitorFor(antiNukeByGuild, guild.id, config.antiNuke,
+        () => createAntiNukeMonitor({ threshold: config.antiNuke.eventThreshold, windowMs: config.antiNuke.windowSeconds * 1000 }), "nuke");
+      const result = monitor.record(guild.id, action);
+      if (result.detected) await sendSecurityAlert(guild.id, config.antiNuke.alertChannelId,
+        "⚠️ Anti-Nuke: repeated " + action + " events detected (" + result.count + " in " + config.antiNuke.windowSeconds + " seconds). Review the server audit log. No automatic action was taken.");
+    } catch (error) {
+      console.error("[SECURITY] Anti-Nuke check failed for guild " + guild.id + ":", error.message);
+    }
   });
 }
 
 client.on(Events.GuildDelete, (guild) => {
   antiRaid.clearGuild(guild.id);
   antiNuke.clearGuild(guild.id);
-  autoMod.clearGuild(guild.id);
+  autoMod.clearGuild(guild.id);\n  guildSecurity.clear(guild.id);\n  antiRaidByGuild.delete(guild.id);\n  antiNukeByGuild.delete(guild.id);\n  autoModByGuild.delete(guild.id);\n  for (const key of securityConfigKeys.keys()) if (key.endsWith(":" + guild.id)) securityConfigKeys.delete(key);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
