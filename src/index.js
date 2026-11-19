@@ -13,7 +13,10 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const { createAntiRaidMonitor } = require("./services/anti-raid");
+const antiRaidMonitor = createAntiRaidMonitor();
+const antiRaidMonitorEnabled = process.env.FUSION_ANTI_RAID_MONITOR === "true";
 client.commands = new Collection();
 client.fusionConfig = DEFAULT_CONFIG;
 
@@ -66,7 +69,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   setInterval(refreshPanelConfig, 60_000).unref();
 });
 
-client.on(Events.InteractionCreate, async (interaction) => {
+client.on(Events.GuildMemberAdd, (member) => {\n  if (!antiRaidMonitorEnabled) return;\n  const result = antiRaidMonitor.recordJoin(member.guild.id);\n  if (result.detected) {\n    console.warn(`[ANTI-RAID MONITOR] Join spike detected in guild ${member.guild.id}: ${result.count} joins within ${result.windowMs}ms. No automatic action was taken.`);\n  }\n});\n\nclient.on(Events.GuildDelete, (guild) => antiRaidMonitor.clearGuild(guild.id));\n\nclient.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
