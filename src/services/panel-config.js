@@ -8,42 +8,15 @@ const DEFAULT_CONFIG = Object.freeze({
   verification: Object.freeze({ enabled: false, verifiedRoleId: null })
 });
 
-let currentConfig = structuredClone(DEFAULT_CONFIG);
-
-function validateConfig(input) {
-  if (!input || typeof input !== "object" || !input.commands || typeof input.commands !== "object") {
-    throw new Error("Panel returned an invalid command configuration.");
-  }
-  const commands = {};
-  for (const name of Object.keys(DEFAULT_CONFIG.commands)) {
-    if (typeof input.commands[name] !== "boolean") {
-      throw new Error("Panel returned an invalid setting for command: " + name);
-    }
-    commands[name] = input.commands[name];
-  }
-  const verification = input.verification;
-  if (!verification || typeof verification.enabled !== "boolean") {
-    throw new Error("Panel returned invalid verification settings.");
-  }
-  const roleId = verification.verifiedRoleId;
-  if (roleId !== null && (typeof roleId !== "string" || !/^\d{17,20}$/.test(roleId))) {
-    throw new Error("Panel returned an invalid verified role ID.");
-  }
-  return { commands, verification: { enabled: verification.enabled, verifiedRoleId: roleId } };
-}
-
-async function fetchPanelConfig() {
-  const url = process.env.FUSION_PANEL_API_URL;
-  const secret = process.env.FUSION_BOT_API_SECRET;
-  if (!url || !secret) throw new Error("Panel configuration is not connected. Set FUSION_PANEL_API_URL and FUSION_BOT_API_SECRET.");
-  let parsed;
-  try { parsed = new URL(url); } catch { throw new Error("FUSION_PANEL_API_URL is invalid."); }
 const COMMAND_NAMES = Object.keys(DEFAULT_CONFIG.commands);
 
 function validateConfig(config) {
-  if (!config || typeof config !== "object" || !config.commands || !config.verification) {
+  if (!config || typeof config !== "object" || Array.isArray(config) ||
+      !config.commands || typeof config.commands !== "object" ||
+      !config.verification || typeof config.verification !== "object") {
     throw new Error("Panel returned an invalid configuration.");
   }
+
   const commands = {};
   for (const name of COMMAND_NAMES) {
     if (typeof config.commands[name] !== "boolean") {
@@ -51,67 +24,48 @@ function validateConfig(config) {
     }
     commands[name] = config.commands[name];
   }
+
   const { enabled, verifiedRoleId } = config.verification;
   if (typeof enabled !== "boolean" ||
-      (verifiedRoleId !== null && (typeof verifiedRoleId !== "string" || !/^\\d{17,20}$/.test(verifiedRoleId)))) {
+      (verifiedRoleId !== null &&
+       (typeof verifiedRoleId !== "string" || !/^\d{17,20}$/.test(verifiedRoleId)))) {
     throw new Error("Panel returned invalid verification settings.");
   }
+
   return { commands, verification: { enabled, verifiedRoleId } };
 }
 
 async function loadPanelConfig() {
   const url = process.env.FUSION_PANEL_API_URL;
   const secret = process.env.FUSION_BOT_API_SECRET;
-  if (!url || !secret) throw new Error("Panel configuration URL or bot secret is missing.");
+  if (!url || !secret) {
+    throw new Error("Panel configuration URL or bot secret is missing.");
+  }
+
   let parsed;
-  try { parsed = new URL(url); } catch { throw new Error("Panel configuration URL is invalid."); }
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("FUSION_PANEL_API_URL is invalid.");
+  }
   if (parsed.protocol !== "https:" && parsed.hostname !== "localhost") {
     throw new Error("Panel configuration endpoint must use HTTPS.");
   }
 
   const response = await fetch(parsed.toString(), {
-  const response = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-fusion-bot-secret": secret },
+    headers: {
+      "content-type": "application/json",
+      "x-fusion-bot-secret": secret
+    },
     body: JSON.stringify({ action: "bot_get_config" }),
     signal: AbortSignal.timeout(8000)
   });
-  let data;
-  try { data = await response.json(); } catch { throw new Error("Panel configuration endpoint returned invalid JSON."); }
-  if (!response.ok || data.error) throw new Error("Panel configuration request failed.");
-  const nextConfig = validateConfig(data.config);
-  return nextConfig;
-}
 
-async function refreshPanelConfig() {
-  const next = await fetchPanelConfig();
-  const changed = JSON.stringify(currentConfig) !== JSON.stringify(next);
-  currentConfig = next;
-  return { config: getPanelConfig(), changed };
-}
-
-function getPanelConfig() {
-  return structuredClone(currentConfig);
-}
-
-function isCommandEnabled(name) {
-  return currentConfig.commands[name] === true;
-}
-
-function resetPanelConfigForTests() {
-  currentConfig = structuredClone(DEFAULT_CONFIG);
-}
-
-module.exports = {
-  DEFAULT_CONFIG,
-  fetchPanelConfig,
-  refreshPanelConfig,
-  getPanelConfig,
-  isCommandEnabled,
-  resetPanelConfigForTests
-};
   let payload;
-  try { payload = await response.json(); } catch {
+  try {
+    payload = await response.json();
+  } catch {
     throw new Error("Panel returned an invalid response.");
   }
   if (!response.ok || payload.error) {
