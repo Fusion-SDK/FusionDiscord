@@ -4,54 +4,43 @@ The official Discord bot for the Fusion community.
 
 ## Features
 
-- Discord.js bot with slash commands.
-- Creator-panel command controls: enabled commands are registered with Discord and checked again when invoked.
-- Bot settings are fetched securely from the Fusion `panel-admin` Edge Function every 60 seconds.
-- `/ping` health check.
-- Optional anti-raid join-spike monitor (monitor-only; no automatic punishments).
+- Discord.js slash-command bot with creator-panel command controls.
+- Secure settings polling from the Fusion `panel-admin` Edge Function.
 - Account-linking commands remain gated until the authenticated in-game confirmation UI exists.
+- Opt-in security monitoring foundations: anti-raid, anti-nuke event spikes, AutoMod signals, and join-gate account-age checks.
+- Monitoring is **alert-only** in this release. It does not automatically punish members, delete messages, change roles, or lock server channels.
 
-## Creator panel integration
+## Creator panel
 
-Configure these environment variables on the machine or hosting service that runs the bot:
+Set `FUSION_PANEL_API_URL` to the Supabase `panel-admin` Edge Function URL and `FUSION_BOT_API_SECRET` to the matching private secret on the bot host. The bot refreshes configuration every 60 seconds and keeps last-known settings if the endpoint is temporarily unavailable. Never place the bot token, service-role key, or bot secret in frontend variables.
 
-- `FUSION_PANEL_API_URL`: the Supabase Edge Function URL ending in `/functions/v1/panel-admin`.
-- `FUSION_BOT_API_SECRET`: the same private secret configured for the `panel-admin` Edge Function.
+## Security monitoring
 
-The bot calls the function's `bot_get_config` action. The secret is sent only from the bot server; it is never placed in the dashboard frontend. The bot refreshes settings every 60 seconds, keeps its last-known settings if the panel is temporarily unavailable, and updates Discord's registered slash commands when settings change. It also checks the setting at execution time, so a disabled command cannot run during Discord's command-cache delay.
+Each monitor is independently opt-in through the bot host environment. Defaults are off.
 
-Run `npm run deploy-commands` to perform an immediate command-registration sync from the panel. This requires the panel URL and bot secret to be configured.
+| Variable | Required Discord intent | Purpose |
+| --- | --- | --- |
+| `FUSION_ANTI_RAID_MONITOR=true` | Server Members Intent | Detect join spikes (default: 6 joins in 10 seconds). |
+| `FUSION_JOIN_GATE_MONITOR=true` | Server Members Intent | Flag newly created accounts; default age threshold is 7 days. |
+| `FUSION_ANTI_NUKE_MONITOR=true` | Guilds | Detect bursts of channel/role creation or deletion, bans, and webhook updates. |
+| `FUSION_AUTOMOD_MONITOR=true` | Guild Messages + Message Content intents | Flag message bursts, repeated messages, and mention floods. |
 
-The dashboard's verification toggle and role ID are stored in the panel. The bot uses the configured role ID for account role synchronization. The account-linking flow itself remains disabled unless `FUSION_LINKING_ENABLED=true`; do not enable it until the authenticated in-game Link Discord screen is implemented and tested.
+These monitors log alerts to the bot process output. They do not yet post to a configured Discord log channel. Configure the corresponding privileged intents in the Discord Developer Portal before enabling the relevant feature. Grant only the permissions needed by the bot.
 
-## Account-linking flow
+Anti-nuke signals are event-rate heuristics, not proof of malicious intent or actor attribution. A legitimate moderation event or server reorganization can trigger an alert. Keep a human moderator in the loop. Per-guild dashboard configuration, audit-log attribution, log-channel delivery, and explicit response controls are follow-up integration work.
 
-1. A user runs `/account-verify` in the Fusion Discord server.
-2. The bot sends the immutable Discord user ID to the trusted backend and displays a short-lived code ephemerally.
-3. The user signs in to Fusion in Geometry Dash and enters the code in the official in-game account settings.
-4. The authenticated Fusion client sends the code to the backend. The backend binds the authenticated Fusion user ID to the Discord ID associated with the code.
-5. The user runs `/account-status`; the bot asks the backend for the authoritative link state and assigns the configured verified role.
-6. `/account-unlink` lets the same Discord identity remove its link.
+## Account linking
 
-The code is single-use, expires after a short period, is stored only as a hash, and is rate-limited by the backend. Discord usernames are not used as identity proof. The bot never asks for Fusion passwords or session tokens.
+The account-linking flow remains disabled unless `FUSION_LINKING_ENABLED=true`. Do not enable it until the authenticated in-game Link Discord screen is implemented and tested. The bot never asks for Fusion passwords or session tokens.
 
 ## Setup
 
 - Node.js 22+
 - A Discord application and bot
 - `npm install`
-- Copy `.env.example` to `.env` and add local development values.
 - Configure production values in the bot host's secret manager.
-- Run `npm run deploy-commands` to register enabled slash commands.
+- Run `npm run deploy-commands` to register enabled commands.
 - Run `npm start` to start the bot.
-
-Set `DISCORD_GUILD_ID` for fast guild-only command registration during development. Leave it blank for global registration.
-
-## Anti-raid monitoring (foundation)
-
-The first anti-raid milestone is a monitor-only join-spike detector. It tracks joins independently per Discord server, uses a sliding time window, and rate-limits repeat alerts. It does not kick, ban, timeout, or change server permissions.
-
-To enable the monitor, set `FUSION_ANTI_RAID_MONITOR=true` on the bot host and enable the **Server Members Intent** in the Discord Developer Portal for the bot application. This privileged intent is required to receive member-join events. The initial threshold is 6 joins in 10 seconds; per-server dashboard controls and alert-channel routing are the next integration step.
 
 ## Environment variables
 
@@ -62,16 +51,18 @@ To enable the monitor, set `FUSION_ANTI_RAID_MONITOR=true` on the bot host and e
 | `DISCORD_GUILD_ID` | No | Development server ID |
 | `FUSION_API_BASE_URL` | Yes for account commands | Supabase `discord-link` Edge Function URL |
 | `FUSION_PANEL_API_URL` | Yes for panel controls | Supabase `panel-admin` Edge Function URL |
-| `FUSION_BOT_API_SECRET` | Yes for account commands and panel controls | Shared bot-to-backend secret |
-| `FUSION_LINKING_ENABLED` | No | Must remain false until the in-game linking UI is ready |
-| `FUSION_ANTI_RAID_MONITOR` | No | Set to `true` to enable monitor-only join-spike alerts in bot logs |
-| `FUSION_VERIFIED_ROLE_ID` | No | Legacy fallback role ID; panel role setting takes precedence |
+| `FUSION_BOT_API_SECRET` | Yes for backend features | Shared bot-to-backend secret |
+| `FUSION_LINKING_ENABLED` | No | Keep false until in-game linking UI is ready |
+| `FUSION_ANTI_RAID_MONITOR` | No | Enable monitor-only join spike alerts |
+| `FUSION_ANTI_NUKE_MONITOR` | No | Enable monitor-only server event spike alerts |
+| `FUSION_AUTOMOD_MONITOR` | No | Enable monitor-only message pattern alerts |
+| `FUSION_JOIN_GATE_MONITOR` | No | Enable monitor-only account-age alerts |
 
 Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backend secret.
 
 ## Development
 
-Run `npm run check` for JavaScript syntax validation and `npm test` for unit tests. Keep `FUSION_LINKING_ENABLED=false` until the in-game confirmation UI is deployed.
+Run `npm run check` for syntax validation and `npm test` for unit tests.
 
 ## License
 
