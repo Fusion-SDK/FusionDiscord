@@ -69,7 +69,17 @@ client.once(Events.ClientReady, async (readyClient) => {
   setInterval(refreshPanelConfig, 60_000).unref();
 });
 
-client.on(Events.GuildMemberAdd, (member) => {\n  if (!antiRaidMonitorEnabled) return;\n  const result = antiRaidMonitor.recordJoin(member.guild.id);\n  if (result.detected) {\n    console.warn(`[ANTI-RAID MONITOR] Join spike detected in guild ${member.guild.id}: ${result.count} joins within ${result.windowMs}ms. No automatic action was taken.`);\n  }\n});\n\nclient.on(Events.GuildDelete, (guild) => antiRaidMonitor.clearGuild(guild.id));\n\nclient.on(Events.InteractionCreate, async (interaction) => {
+client.on(Events.GuildMemberAdd, (member) => {
+  if (!antiRaidMonitorEnabled) return;
+  const result = antiRaidMonitor.recordJoin(member.guild.id);
+  if (result.detected) {
+    console.warn(`[ANTI-RAID MONITOR] Join spike detected in guild ${member.guild.id}: ${result.count} joins within ${result.windowMs}ms. No automatic action was taken.`);
+  }
+});
+
+client.on(Events.GuildDelete, (guild) => antiRaidMonitor.clearGuild(guild.id));
+
+client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
