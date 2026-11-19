@@ -67,3 +67,10 @@ Run `npm run check` for syntax validation and `npm test` for unit tests.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+
+## Automatic server discovery
+
+When the bot starts, it sends the Discord servers it is currently in to the protected `panel-admin` Edge Function. It refreshes that directory every 60 seconds and immediately after joining or leaving a server. The panel displays server names, icons, and available member counts; administrators select a server from the list rather than entering IDs.
+
+The bot sends only server metadata needed for the creator dashboard. Server IDs remain internal identifiers. Configure `FUSION_PANEL_API_URL` and `FUSION_BOT_API_SECRET` on the bot host. Apply the matching server-directory migration and deploy the updated Edge Function in Fusion-Bot-Panel.
