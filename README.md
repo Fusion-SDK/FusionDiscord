@@ -7,7 +7,8 @@ The official Discord bot for the Fusion community.
 - Discord.js bot with slash commands.
 - Creator-panel command controls: enabled commands are registered with Discord and checked again when invoked.
 - Bot settings are fetched securely from the Fusion `panel-admin` Edge Function every 60 seconds.
-- `/ping` health check.\n- Optional anti-raid join-spike monitor (monitor-only; no automatic punishments).
+- `/ping` health check.
+- Optional anti-raid join-spike monitor (monitor-only; no automatic punishments).
 - Account-linking commands remain gated until the authenticated in-game confirmation UI exists.
 
 ## Creator panel integration
@@ -46,7 +47,13 @@ The code is single-use, expires after a short period, is stored only as a hash, 
 
 Set `DISCORD_GUILD_ID` for fast guild-only command registration during development. Leave it blank for global registration.
 
-## Anti-raid monitoring (foundation)\n\nThe first anti-raid milestone is a monitor-only join-spike detector. It tracks joins independently per Discord server, uses a sliding time window, and rate-limits repeat alerts. It does not kick, ban, timeout, or change server permissions.\n\nTo enable the monitor, set `FUSION_ANTI_RAID_MONITOR=true` on the bot host and enable the **Server Members Intent** in the Discord Developer Portal for the bot application. This privileged intent is required to receive member-join events. The initial threshold is 6 joins in 10 seconds; per-server dashboard controls and alert-channel routing are the next integration step.\n\n## Environment variables
+## Anti-raid monitoring (foundation)
+
+The first anti-raid milestone is a monitor-only join-spike detector. It tracks joins independently per Discord server, uses a sliding time window, and rate-limits repeat alerts. It does not kick, ban, timeout, or change server permissions.
+
+To enable the monitor, set `FUSION_ANTI_RAID_MONITOR=true` on the bot host and enable the **Server Members Intent** in the Discord Developer Portal for the bot application. This privileged intent is required to receive member-join events. The initial threshold is 6 joins in 10 seconds; per-server dashboard controls and alert-channel routing are the next integration step.
+
+## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
@@ -56,7 +63,8 @@ Set `DISCORD_GUILD_ID` for fast guild-only command registration during developme
 | `FUSION_API_BASE_URL` | Yes for account commands | Supabase `discord-link` Edge Function URL |
 | `FUSION_PANEL_API_URL` | Yes for panel controls | Supabase `panel-admin` Edge Function URL |
 | `FUSION_BOT_API_SECRET` | Yes for account commands and panel controls | Shared bot-to-backend secret |
-| `FUSION_LINKING_ENABLED` | No | Must remain false until the in-game linking UI is ready |\n| `FUSION_ANTI_RAID_MONITOR` | No | Set to `true` to enable monitor-only join-spike alerts in bot logs |
+| `FUSION_LINKING_ENABLED` | No | Must remain false until the in-game linking UI is ready |
+| `FUSION_ANTI_RAID_MONITOR` | No | Set to `true` to enable monitor-only join-spike alerts in bot logs |
 | `FUSION_VERIFIED_ROLE_ID` | No | Legacy fallback role ID; panel role setting takes precedence |
 
 Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backend secret.
