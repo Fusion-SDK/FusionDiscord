@@ -13,7 +13,12 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const antiRaidMonitorEnabled = process.env.FUSION_ANTI_RAID_MONITOR === "true";
+const intents = [GatewayIntentBits.Guilds];
+if (antiRaidMonitorEnabled) intents.push(GatewayIntentBits.GuildMembers);
+const client = new Client({ intents });
+const { createAntiRaidMonitor } = require("./services/anti-raid");
+const antiRaidMonitor = createAntiRaidMonitor();
 client.commands = new Collection();
 client.fusionConfig = DEFAULT_CONFIG;
 
@@ -65,6 +70,16 @@ client.once(Events.ClientReady, async (readyClient) => {
   await syncSlashCommands(client.fusionConfig);
   setInterval(refreshPanelConfig, 60_000).unref();
 });
+
+client.on(Events.GuildMemberAdd, (member) => {
+  if (!antiRaidMonitorEnabled) return;
+  const result = antiRaidMonitor.recordJoin(member.guild.id);
+  if (result.detected) {
+    console.warn(`[ANTI-RAID MONITOR] Join spike detected in guild ${member.guild.id}: ${result.count} joins within ${result.windowMs}ms. No automatic action was taken.`);
+  }
+});
+
+client.on(Events.GuildDelete, (guild) => antiRaidMonitor.clearGuild(guild.id));
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
