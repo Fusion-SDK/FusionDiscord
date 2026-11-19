@@ -7,7 +7,7 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
     await api.unlink(interaction.user.id);
-    await syncVerifiedRole(interaction, false);
+    await syncVerifiedRole(interaction, false, interaction.client.fusionConfig?.verification);
     return interaction.editReply("Your Discord account has been unlinked from Fusion. You can link it again at any time.");
   }
 };
