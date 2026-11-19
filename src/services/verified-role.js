@@ -1,5 +1,9 @@
-async function syncVerifiedRole(interaction, linked) {
-  const roleId = process.env.FUSION_VERIFIED_ROLE_ID;
+async function syncVerifiedRole(interaction, linked, verification = null) {
+  const configured = verification && typeof verification === "object";
+  if (configured && verification.enabled !== true) {
+    return { updated: false, reason: "verification_disabled" };
+  }
+  const roleId = configured ? verification.verifiedRoleId : process.env.FUSION_VERIFIED_ROLE_ID;
   if (!roleId || !interaction.inGuild()) return { updated: false, reason: "not_configured" };
 
   const [member, role] = await Promise.all([
