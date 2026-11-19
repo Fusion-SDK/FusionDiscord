@@ -24,10 +24,37 @@ const client = new Client({ intents });
 const { createAntiRaidMonitor } = require("./services/anti-raid");
 const { createAntiNukeMonitor } = require("./services/anti-nuke");
 const { createAutoModMonitor } = require("./services/auto-mod");
-const { inspectMember } = require("./services/join-gate");\nconst { createGuildSecurityClient } = require("./services/guild-security");
+const { inspectMember } = require("./services/join-gate");
+const { createGuildSecurityClient } = require("./services/guild-security");
 const antiRaid = createAntiRaidMonitor();
 const antiNuke = createAntiNukeMonitor();
-const autoMod = createAutoModMonitor();\nconst guildSecurity = createGuildSecurityClient();\nconst antiRaidByGuild = new Map();\nconst antiNukeByGuild = new Map();\nconst autoModByGuild = new Map();\nconst securityConfigKeys = new Map();\n\nfunction monitorFor(map, guildId, config, factory, key) {\n  const fingerprint = JSON.stringify(config);\n  if (securityConfigKeys.get(key + ":" + guildId) !== fingerprint) {\n    map.set(guildId, factory());\n    securityConfigKeys.set(key + ":" + guildId, fingerprint);\n  }\n  return map.get(guildId);\n}\n\nasync function sendSecurityAlert(guildId, channelId, content) {\n  if (!channelId) return;\n  try {\n    const channel = await client.channels.fetch(channelId);\n    if (channel?.isTextBased() && typeof channel.send === "function") {\n      await channel.send({ content, allowedMentions: { parse: [] } });\n    }\n  } catch (error) {\n    console.error("[SECURITY] Could not send alert for guild " + guildId + ":", error.message);\n  }\n}
+const autoMod = createAutoModMonitor();
+const guildSecurity = createGuildSecurityClient();
+const antiRaidByGuild = new Map();
+const antiNukeByGuild = new Map();
+const autoModByGuild = new Map();
+const securityConfigKeys = new Map();
+
+function monitorFor(map, guildId, config, factory, key) {
+  const fingerprint = JSON.stringify(config);
+  if (securityConfigKeys.get(key + ":" + guildId) !== fingerprint) {
+    map.set(guildId, factory());
+    securityConfigKeys.set(key + ":" + guildId, fingerprint);
+  }
+  return map.get(guildId);
+}
+
+async function sendSecurityAlert(guildId, channelId, content) {
+  if (!channelId) return;
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (channel?.isTextBased() && typeof channel.send === "function") {
+      await channel.send({ content, allowedMentions: { parse: [] } });
+    }
+  } catch (error) {
+    console.error("[SECURITY] Could not send alert for guild " + guildId + ":", error.message);
+  }
+}
 client.commands = new Collection();
 client.fusionConfig = DEFAULT_CONFIG;
 
@@ -149,7 +176,12 @@ for (const [eventName, action] of antiNukeEvents) {
 client.on(Events.GuildDelete, (guild) => {
   antiRaid.clearGuild(guild.id);
   antiNuke.clearGuild(guild.id);
-  autoMod.clearGuild(guild.id);\n  guildSecurity.clear(guild.id);\n  antiRaidByGuild.delete(guild.id);\n  antiNukeByGuild.delete(guild.id);\n  autoModByGuild.delete(guild.id);\n  for (const key of securityConfigKeys.keys()) if (key.endsWith(":" + guild.id)) securityConfigKeys.delete(key);
+  autoMod.clearGuild(guild.id);
+  guildSecurity.clear(guild.id);
+  antiRaidByGuild.delete(guild.id);
+  antiNukeByGuild.delete(guild.id);
+  autoModByGuild.delete(guild.id);
+  for (const key of securityConfigKeys.keys()) if (key.endsWith(":" + guild.id)) securityConfigKeys.delete(key);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
