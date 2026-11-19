@@ -26,10 +26,21 @@ const { createAntiNukeMonitor } = require("./services/anti-nuke");
 const { createAutoModMonitor } = require("./services/auto-mod");
 const { inspectMember } = require("./services/join-gate");
 const { createGuildSecurityClient } = require("./services/guild-security");
+const { createGuildDirectorySync } = require("./services/guild-directory");
 const antiRaid = createAntiRaidMonitor();
 const antiNuke = createAntiNukeMonitor();
 const autoMod = createAutoModMonitor();
 const guildSecurity = createGuildSecurityClient();
+const guildDirectorySync = createGuildDirectorySync();
+
+async function syncGuildDirectory() {
+  try {
+    const count = await guildDirectorySync.sync(client.guilds.cache.values());
+    console.log("[PANEL] Synchronized " + count + " Discord server(s) to the creator panel.");
+  } catch (error) {
+    console.error("[PANEL] Could not synchronize Discord server directory:", error.message);
+  }
+}
 const antiRaidByGuild = new Map();
 const antiNukeByGuild = new Map();
 const autoModByGuild = new Map();
@@ -101,7 +112,9 @@ client.once(Events.ClientReady, async (readyClient) => {
   console.log("Fusion Discord is online as " + readyClient.user.tag);
   await refreshPanelConfig();
   await syncSlashCommands(client.fusionConfig);
+  await syncGuildDirectory();
   setInterval(refreshPanelConfig, 60_000).unref();
+  setInterval(syncGuildDirectory, 60_000).unref();
 });
 
 client.on(Events.GuildMemberAdd, async (member) => {
@@ -173,10 +186,13 @@ for (const [eventName, action] of antiNukeEvents) {
   });
 }
 
+client.on(Events.GuildCreate, () => { void syncGuildDirectory(); });
+
 client.on(Events.GuildDelete, (guild) => {
   antiRaid.clearGuild(guild.id);
   antiNuke.clearGuild(guild.id);
   autoMod.clearGuild(guild.id);
+  void syncGuildDirectory();
   guildSecurity.clear(guild.id);
   antiRaidByGuild.delete(guild.id);
   antiNukeByGuild.delete(guild.id);
