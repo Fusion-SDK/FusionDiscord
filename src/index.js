@@ -27,11 +27,32 @@ const { createAutoModMonitor } = require("./services/auto-mod");
 const { inspectMember } = require("./services/join-gate");
 const { createGuildSecurityClient } = require("./services/guild-security");
 const { createGuildDirectorySync } = require("./services/guild-directory");
+const { createGuildResourceSync } = require("./services/guild-resource-sync");
 const antiRaid = createAntiRaidMonitor();
 const antiNuke = createAntiNukeMonitor();
 const autoMod = createAutoModMonitor();
 const guildSecurity = createGuildSecurityClient();
 const guildDirectorySync = createGuildDirectorySync();
+const guildResourceSync = createGuildResourceSync();
+let resourceSyncTimer = null;
+
+async function syncGuildResources() {
+  try {
+    const count = await guildResourceSync.sync(client.guilds.cache.values());
+    console.log("[PANEL] Synchronized Discord roles and channels for " + count + " server(s).");
+  } catch (error) {
+    console.error("[PANEL] Could not synchronize Discord server resources:", error.message);
+  }
+}
+
+function scheduleGuildResourceSync() {
+  if (resourceSyncTimer) clearTimeout(resourceSyncTimer);
+  resourceSyncTimer = setTimeout(() => {
+    resourceSyncTimer = null;
+    void syncGuildResources();
+  }, 1500);
+  resourceSyncTimer.unref?.();
+}
 
 async function syncGuildDirectory() {
   try {
@@ -113,8 +134,10 @@ client.once(Events.ClientReady, async (readyClient) => {
   await refreshPanelConfig();
   await syncSlashCommands(client.fusionConfig);
   await syncGuildDirectory();
+  await syncGuildResources();
   setInterval(refreshPanelConfig, 60_000).unref();
   setInterval(syncGuildDirectory, 60_000).unref();
+  setInterval(syncGuildResources, 60_000).unref();
 });
 
 client.on(Events.GuildMemberAdd, async (member) => {
@@ -186,13 +209,21 @@ for (const [eventName, action] of antiNukeEvents) {
   });
 }
 
-client.on(Events.GuildCreate, () => { void syncGuildDirectory(); });
+client.on(Events.GuildCreate, () => { void syncGuildDirectory(); scheduleGuildResourceSync(); });
+
+for (const eventName of [
+  Events.GuildRoleCreate, Events.GuildRoleUpdate, Events.GuildRoleDelete,
+  Events.ChannelCreate, Events.ChannelUpdate, Events.ChannelDelete
+]) {
+  client.on(eventName, scheduleGuildResourceSync);
+}
 
 client.on(Events.GuildDelete, (guild) => {
   antiRaid.clearGuild(guild.id);
   antiNuke.clearGuild(guild.id);
   autoMod.clearGuild(guild.id);
   void syncGuildDirectory();
+  scheduleGuildResourceSync();
   guildSecurity.clear(guild.id);
   antiRaidByGuild.delete(guild.id);
   antiNukeByGuild.delete(guild.id);
