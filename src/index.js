@@ -13,10 +13,12 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const antiRaidMonitorEnabled = process.env.FUSION_ANTI_RAID_MONITOR === "true";
+const intents = [GatewayIntentBits.Guilds];
+if (antiRaidMonitorEnabled) intents.push(GatewayIntentBits.GuildMembers);
+const client = new Client({ intents });
 const { createAntiRaidMonitor } = require("./services/anti-raid");
 const antiRaidMonitor = createAntiRaidMonitor();
-const antiRaidMonitorEnabled = process.env.FUSION_ANTI_RAID_MONITOR === "true";
 client.commands = new Collection();
 client.fusionConfig = DEFAULT_CONFIG;
 
