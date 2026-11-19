@@ -74,3 +74,12 @@ MIT. See [LICENSE](LICENSE).
 When the bot starts, it sends the Discord servers it is currently in to the protected `panel-admin` Edge Function. It refreshes that directory every 60 seconds and immediately after joining or leaving a server. The panel displays server names, icons, and available member counts; administrators select a server from the list rather than entering IDs.
 
 The bot sends only server metadata needed for the creator dashboard. Server IDs remain internal identifiers. Configure `FUSION_PANEL_API_URL` and `FUSION_BOT_API_SECRET` on the bot host. Apply the matching server-directory migration and deploy the updated Edge Function in Fusion-Bot-Panel.
+
+
+## Shared server resource synchronization
+
+The bot publishes each connected server's role and channel metadata to the protected Fusion panel API, alongside the existing server directory. Synchronization runs at startup, every 60 seconds, and after role or channel create/update/delete events (debounced to avoid event bursts).
+
+The snapshot includes role names, colors, positions, permission bitfields, and managed/mentionable/hoist flags. Channel snapshots include names, channel types, category relationships, positions, topics, and age-restricted flags. It does not synchronize message contents or member lists. The panel uses the existing `FUSION_PANEL_API_URL` and `FUSION_BOT_API_SECRET` settings.
+
+Apply the matching `0004_fusion_bot_guild_resources.sql` migration and redeploy the panel's `panel-admin` Edge Function before enabling this integration. The panel currently displays these snapshots read-only; Discord resource changes remain in Discord itself until a separately permission-checked and audited action API is released.
