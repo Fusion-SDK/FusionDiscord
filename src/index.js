@@ -61,8 +61,8 @@ async function refreshPanelConfig() {
 client.once(Events.ClientReady, async (readyClient) => {
   console.log("Fusion Discord is online as " + readyClient.user.tag);
   await refreshPanelConfig();
-  // Register the safe built-in defaults if the panel is not configured yet.
-  if (!process.env.FUSION_PANEL_API_URL) await syncSlashCommands(client.fusionConfig);
+  // Ensure Discord command registration is correct even if the panel is temporarily unavailable.
+  await syncSlashCommands(client.fusionConfig);
   setInterval(refreshPanelConfig, 60_000).unref();
 });
 
