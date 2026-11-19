@@ -15,7 +15,7 @@ module.exports = {
     }
     const status = await api.getStatus(interaction.user.id);
     if (status.linked) {
-      await syncVerifiedRole(interaction, true);
+      await syncVerifiedRole(interaction, true, interaction.client.fusionConfig?.verification);
       return interaction.editReply("Your Discord account is already linked to Fusion.");
     }
     const challenge = await api.createChallenge(interaction.user.id);

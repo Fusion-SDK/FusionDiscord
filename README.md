@@ -5,10 +5,23 @@ The official Discord bot for the Fusion community.
 ## Features
 
 - Discord.js bot with slash commands.
+- Creator-panel command controls: enabled commands are registered with Discord and checked again when invoked.
+- Bot settings are fetched securely from the Fusion `panel-admin` Edge Function every 60 seconds.
 - `/ping` health check.
-- `/account-verify` starts the short-lived one-time-code flow when explicitly enabled; it is disabled by default until the in-game confirmation UI exists.
-- `/account-status` checks the backend link and synchronizes the configured verified role.
-- `/account-unlink` removes the caller's Discord link and synchronizes role removal.
+- Account-linking commands remain gated until the authenticated in-game confirmation UI exists.
+
+## Creator panel integration
+
+Configure these environment variables on the machine or hosting service that runs the bot:
+
+- `FUSION_PANEL_API_URL`: the Supabase Edge Function URL ending in `/functions/v1/panel-admin`.
+- `FUSION_BOT_API_SECRET`: the same private secret configured for the `panel-admin` Edge Function.
+
+The bot calls the function's `bot_get_config` action. The secret is sent only from the bot server; it is never placed in the dashboard frontend. The bot refreshes settings every 60 seconds, keeps its last-known settings if the panel is temporarily unavailable, and updates Discord's registered slash commands when settings change. It also checks the setting at execution time, so a disabled command cannot run during Discord's command-cache delay.
+
+Run `npm run deploy-commands` to perform an immediate command-registration sync from the panel. This requires the panel URL and bot secret to be configured.
+
+The dashboard's verification toggle and role ID are stored in the panel. The bot uses the configured role ID for account role synchronization. The account-linking flow itself remains disabled unless `FUSION_LINKING_ENABLED=true`; do not enable it until the authenticated in-game Link Discord screen is implemented and tested.
 
 ## Account-linking flow
 
@@ -21,15 +34,14 @@ The official Discord bot for the Fusion community.
 
 The code is single-use, expires after a short period, is stored only as a hash, and is rate-limited by the backend. Discord usernames are not used as identity proof. The bot never asks for Fusion passwords or session tokens.
 
-**Activation requirements:** deploy the Supabase migration and Edge Function in the Fusion backend, configure the function secrets, configure the bot environment variables, invite the bot with Manage Roles, and place the verified role below the bot's highest role. The Geometry Dash client still needs an authenticated in-game Link Discord screen; that UI is not yet implemented in the current client.
-
 ## Setup
 
 - Node.js 22+
 - A Discord application and bot
 - `npm install`
-- Copy `.env.example` to `.env` and configure the Discord credentials.
-- Run `npm run deploy-commands` to register slash commands.
+- Copy `.env.example` to `.env` and add local development values.
+- Configure production values in the bot host's secret manager.
+- Run `npm run deploy-commands` to register enabled slash commands.
 - Run `npm start` to start the bot.
 
 Set `DISCORD_GUILD_ID` for fast guild-only command registration during development. Leave it blank for global registration.
@@ -41,15 +53,17 @@ Set `DISCORD_GUILD_ID` for fast guild-only command registration during developme
 | `DISCORD_TOKEN` | Yes | Bot token |
 | `DISCORD_CLIENT_ID` | Yes | Discord application ID |
 | `DISCORD_GUILD_ID` | No | Development server ID |
-| `FUSION_API_BASE_URL` | Yes for account commands | Supabase Edge Function URL |
-| `FUSION_BOT_API_SECRET` | Yes for account commands | Shared bot-to-backend secret |
-| `FUSION_VERIFIED_ROLE_ID` | No | Role ID assigned after backend confirmation |
+| `FUSION_API_BASE_URL` | Yes for account commands | Supabase `discord-link` Edge Function URL |
+| `FUSION_PANEL_API_URL` | Yes for panel controls | Supabase `panel-admin` Edge Function URL |
+| `FUSION_BOT_API_SECRET` | Yes for account commands and panel controls | Shared bot-to-backend secret |
+| `FUSION_LINKING_ENABLED` | No | Must remain false until the in-game linking UI is ready |
+| `FUSION_VERIFIED_ROLE_ID` | No | Legacy fallback role ID; panel role setting takes precedence |
 
-Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backend secret. Store production credentials in the host's secret manager.
+Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backend secret.
 
 ## Development
 
-Run `npm run check` for JavaScript syntax validation and `npm test` for mocked account-linking service, role-sync, and feature-gate tests. Keep `FUSION_LINKING_ENABLED=false` until the in-game confirmation UI is deployed.
+Run `npm run check` for JavaScript syntax validation and `npm test` for unit tests. Keep `FUSION_LINKING_ENABLED=false` until the in-game confirmation UI is deployed.
 
 ## License
 
