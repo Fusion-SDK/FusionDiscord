@@ -2,13 +2,18 @@ const DEFAULT_CONFIG = Object.freeze({
   commands: Object.freeze({
     ping: true,
     "account-verify": false,
-    "account-status": true,
-    "account-unlink": true
+    "account-status": false,
+    "account-unlink": false
   }),
   verification: Object.freeze({ enabled: false, verifiedRoleId: null })
 });
 
 const COMMAND_NAMES = Object.keys(DEFAULT_CONFIG.commands);
+const LOCKED_ACCOUNT_COMMANDS = new Set(["account-verify", "account-status", "account-unlink"]);
+
+function isCommandEnabled(config, name) {
+  return !LOCKED_ACCOUNT_COMMANDS.has(name) && config?.commands?.[name] === true;
+}
 
 function validateConfig(config) {
   if (!config || typeof config !== "object" || Array.isArray(config) ||
@@ -22,7 +27,8 @@ function validateConfig(config) {
     if (typeof config.commands[name] !== "boolean") {
       throw new Error("Panel returned an invalid command setting: " + name);
     }
-    commands[name] = config.commands[name];
+    // Account linking stays unavailable until the authenticated in-game flow is released.
+    commands[name] = LOCKED_ACCOUNT_COMMANDS.has(name) ? false : config.commands[name];
   }
 
   const { enabled, verifiedRoleId } = config.verification;
@@ -32,7 +38,7 @@ function validateConfig(config) {
     throw new Error("Panel returned invalid verification settings.");
   }
 
-  return { commands, verification: { enabled, verifiedRoleId } };
+  return { commands, verification: { enabled: false, verifiedRoleId: null } };
 }
 
 async function loadPanelConfig() {
@@ -74,4 +80,4 @@ async function loadPanelConfig() {
   return validateConfig(payload.config);
 }
 
-module.exports = { DEFAULT_CONFIG, loadPanelConfig, validateConfig };
+module.exports = { DEFAULT_CONFIG, loadPanelConfig, validateConfig, isCommandEnabled, LOCKED_ACCOUNT_COMMANDS };

@@ -3,7 +3,7 @@ require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
 const { Client, Collection, GatewayIntentBits, Events, REST, Routes } = require("discord.js");
-const { DEFAULT_CONFIG, loadPanelConfig } = require("./services/panel-config");
+const { DEFAULT_CONFIG, loadPanelConfig, isCommandEnabled } = require("./services/panel-config");
 
 const requiredEnv = ["DISCORD_TOKEN", "DISCORD_CLIENT_ID"];
 const missingEnv = requiredEnv.filter((name) => !process.env[name]);
@@ -109,7 +109,7 @@ const commandRoute = process.env.DISCORD_GUILD_ID
 
 async function syncSlashCommands(config) {
   const enabled = [...client.commands.values()]
-    .filter((command) => config.commands[command.data.name] === true)
+    .filter((command) => isCommandEnabled(config, command.data.name))
     .map((command) => command.data.toJSON());
   await rest.put(commandRoute, { body: enabled });
   console.log("Synchronized " + enabled.length + " enabled slash command(s) from the Fusion panel.");
@@ -250,7 +250,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
-  if (client.fusionConfig.commands[interaction.commandName] !== true) {
+  if (!isCommandEnabled(client.fusionConfig, interaction.commandName)) {
     return interaction.reply({ content: "That command is currently disabled by the Fusion bot administrator.", ephemeral: true }).catch(() => {});
   }
   try {
