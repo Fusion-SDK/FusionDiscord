@@ -1,11 +1,11 @@
 const DEFAULT_CONFIG = Object.freeze({
   commands: Object.freeze({
     ping: true,
-    warn: true,
-    timeout: true,
-    kick: true,
-    ban: true,
-    purge: true,
+    warn: false,
+    timeout: false,
+    kick: false,
+    ban: false,
+    purge: false,
     "account-verify": false,
     "account-status": false,
     "account-unlink": false
