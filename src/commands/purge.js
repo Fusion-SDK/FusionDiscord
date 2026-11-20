@@ -21,7 +21,18 @@ module.exports = {
     try {
       const amount = interaction.options.getInteger("amount", true);
       const reason = normalizeReason(interaction.options.getString("reason"));
-      const deleted = await interaction.channel.bulkDelete(amount, true);
+      let deletedCount = 0;
+      if (amount === 1) {
+        const recent = await interaction.channel.messages.fetch({ limit: 1 });
+        const latest = recent.first();
+        if (latest && Date.now() - latest.createdTimestamp < 14 * 24 * 60 * 60 * 1000) {
+          await latest.delete();
+          deletedCount = 1;
+        }
+      } else {
+        const deleted = await interaction.channel.bulkDelete(amount, true);
+        deletedCount = deleted.size;
+      }
       let caseId = null;
       let auditWarning = "";
       try {
@@ -31,11 +42,11 @@ module.exports = {
           targetUserId: null,
           action: "purge",
           reason,
-          metadata: { channelId: interaction.channelId, deletedCount: deleted.size }
+          metadata: { channelId: interaction.channelId, deletedCount }
         });
         caseId = result.caseId;
       } catch (error) { auditWarning = " Messages were removed, but the audit record could not be saved: " + error.message; }
-      return interaction.editReply("Removed " + deleted.size + " recent message(s)." + (caseId ? " Case #" + caseId + "." : "") + auditWarning);
+      return interaction.editReply("Removed " + deletedCount + " recent message(s)." + (caseId ? " Case #" + caseId + "." : "") + auditWarning);
     } catch (error) {
       return interaction.editReply(error.message || "Could not purge messages.");
     }
