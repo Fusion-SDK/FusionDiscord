@@ -19,13 +19,8 @@ module.exports = {
       const user = interaction.options.getUser("member", true);
       const reason = normalizeReason(interaction.options.getString("reason"));
       const { actor, target } = await getModerationContext(interaction.guild, interaction.user.id, user.id);
-      let caseId = null;
-      let auditWarning = "";
-      try {
-        const result = await audit.record({ guildId: interaction.guildId, actorUserId: actor.id, targetUserId: target.id, action: "warn", reason });
-        caseId = result.caseId;
-      } catch (error) { auditWarning = " The warning was issued, but the audit record could not be saved: " + error.message; }
-      return interaction.editReply("Warning recorded for <@" + target.id + ">." + (caseId ? " Case #" + caseId + "." : "") + auditWarning);
+      const result = await audit.record({ guildId: interaction.guildId, actorUserId: actor.id, targetUserId: target.id, action: "warn", reason });
+      return interaction.editReply("Warning recorded for <@" + target.id + ">." + (result.caseId ? " Case #" + result.caseId + "." : ""));
     } catch (error) {
       return interaction.editReply(error.message || "Could not record that warning.");
     }
