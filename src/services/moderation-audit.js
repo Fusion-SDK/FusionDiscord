@@ -17,7 +17,7 @@ function createModerationCaseReporter(options = {}) {
       throw new TypeError("A valid target user ID is required.");
     }
     if (!ACTIONS.has(entry.action)) throw new TypeError("Unsupported moderation action.");
-    if ((entry.action === "purge" && entry.targetUserId != null) || (entry.action !== "purge" && (typeof entry.targetUserId !== "string" || !/^\\d{17,20}$/.test(entry.targetUserId)))) {
+    if ((entry.action === "purge" && entry.targetUserId != null) || (entry.action !== "purge" && (typeof entry.targetUserId !== "string" || !/^[0-9]{17,20}$/.test(entry.targetUserId)))) {
       throw new TypeError("A valid target user ID is required for this action.");
     }
     if (entry.durationSeconds != null && (!Number.isInteger(entry.durationSeconds) || entry.durationSeconds < 1 || entry.durationSeconds > 2_419_200)) {
