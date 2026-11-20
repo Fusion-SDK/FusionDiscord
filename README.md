@@ -5,6 +5,8 @@ The official Discord bot for the Fusion community.
 ## Features
 
 - Discord.js slash-command bot with creator-panel command controls.
+- Moderator-initiated `/warn`, `/timeout`, `/kick`, `/ban`, and `/purge` commands with permission and role-hierarchy checks.
+- Persistent moderation case history in the Fusion Control Panel, including moderator, target, reason, action, and timestamp.
 - Secure settings polling from the Fusion `panel-admin` Edge Function.
 - Account-linking commands remain gated until the authenticated in-game confirmation UI exists.
 - Opt-in security monitoring foundations: anti-raid, anti-nuke event spikes, AutoMod signals, and join-gate account-age checks.
@@ -25,13 +27,13 @@ Each monitor is configured independently for each Discord server in the Fusion C
 | `FUSION_ANTI_NUKE_MONITOR=true` | Guilds | Detect bursts of channel/role creation or deletion, bans, and webhook updates. |
 | `FUSION_AUTOMOD_MONITOR=true` | Guild Messages + Message Content intents | Flag message bursts, repeated messages, and mention floods. |
 
-Alerts can be sent to the configured per-server alert channel. The bot needs permission to view that channel and send messages. The monitors do not automatically punish members, delete messages, or change server permissions. Configure the corresponding privileged intents in the Discord Developer Portal before enabling the relevant feature. Grant only the permissions needed by the bot.
+Alerts can be sent to the configured per-server alert channel. The bot needs permission to view that channel and send messages. The monitors do not automatically punish members, delete messages, or change server permissions. Manual moderation commands are separate and require the matching Discord permission; they are never triggered by monitor alerts. Configure the corresponding privileged intents in the Discord Developer Portal before enabling the relevant feature. Grant only the permissions needed by the bot.
 
-Anti-nuke signals are event-rate heuristics, not proof of malicious intent or actor attribution. A legitimate moderation event or server reorganization can trigger an alert. Keep a human moderator in the loop. Per-guild settings and alert-channel routing are managed in the companion Fusion-Bot-Panel repository. Audit-log actor attribution and explicit response controls remain future integration work.
+Anti-nuke signals are event-rate heuristics, not proof of malicious intent or actor attribution. A legitimate moderation event or server reorganization can trigger an alert. Keep a human moderator in the loop. Per-guild settings and alert-channel routing are managed in the companion Fusion-Bot-Panel repository. Automatic moderation and emergency lockdown remain disabled. Manual moderator actions are recorded as case entries through the protected panel API. The monitor-only alerts do not infer or claim an actor.
 
 ## Account linking
 
-The account-linking flow remains disabled unless `FUSION_LINKING_ENABLED=true`. Do not enable it until the authenticated in-game Link Discord screen is implemented and tested. The bot never asks for Fusion passwords or session tokens.
+The account-linking flow is hard-disabled in the bot and panel. `/account-verify`, `/account-status`, and `/account-unlink` cannot be enabled through configuration. Do not change this release gate until the authenticated in-game Link Discord flow is implemented and tested. The bot never asks for Fusion passwords or session tokens.
 
 ## Setup
 
@@ -40,7 +42,7 @@ The account-linking flow remains disabled unless `FUSION_LINKING_ENABLED=true`. 
 - `npm install`
 - Configure production values in the bot host's secret manager.
 - Run `npm run deploy-commands` to register enabled commands.
-- Run `npm start` to start the bot.
+- Run `npm start` to start the bot. Apply the panel migrations through `0007_fusion_moderation_cases.sql` and deploy the matching `panel-admin` Edge Function before using moderation case logging.
 
 ## Environment variables
 
@@ -49,16 +51,27 @@ The account-linking flow remains disabled unless `FUSION_LINKING_ENABLED=true`. 
 | `DISCORD_TOKEN` | Yes | Bot token |
 | `DISCORD_CLIENT_ID` | Yes | Discord application ID |
 | `DISCORD_GUILD_ID` | No | Development server ID |
-| `FUSION_API_BASE_URL` | Yes for account commands | Supabase `discord-link` Edge Function URL |
 | `FUSION_PANEL_API_URL` | Yes for panel controls | Supabase `panel-admin` Edge Function URL |
 | `FUSION_BOT_API_SECRET` | Yes for backend features | Shared bot-to-backend secret |
-| `FUSION_LINKING_ENABLED` | No | Keep false until in-game linking UI is ready |
+| `FUSION_LINKING_ENABLED` | Not used | Account linking is hard-disabled in code until the authenticated in-game flow is released |
 | `FUSION_ANTI_RAID_MONITOR` | No | Enable monitor-only join spike alerts |
 | `FUSION_ANTI_NUKE_MONITOR` | No | Enable monitor-only server event spike alerts |
 | `FUSION_AUTOMOD_MONITOR` | No | Enable monitor-only message pattern alerts |
 | `FUSION_JOIN_GATE_MONITOR` | No | Enable monitor-only account-age alerts |
 
 Never commit `.env`, bot tokens, Supabase service-role keys, or the shared backend secret.
+
+## Manual moderation
+
+| Command | Required Discord permission | Behavior |
+| --- | --- | --- |
+| `/warn` | Moderate Members | Records an internal warning case. |
+| `/timeout` | Moderate Members | Applies a moderator-selected timeout from 1 second up to 28 days. |
+| `/kick` | Kick Members | Removes the selected member. |
+| `/ban` | Ban Members | Bans the selected member. |
+| `/purge` | Manage Messages | Deletes 1–100 recent messages in the current text channel; messages older than Discord’s bulk-delete window are skipped. |
+
+The bot checks role hierarchy and prevents moderators from targeting themselves, the server owner, or members with equal/higher roles. Fusion must also have the relevant bot permissions and a role above the target. Successful actions are written to the panel case history. If case logging fails after an action, the command reports that partial failure. Automatic punishments are not connected to the monitoring engines.
 
 ## Development
 

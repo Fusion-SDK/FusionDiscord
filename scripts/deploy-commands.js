@@ -3,7 +3,7 @@ require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
 const { REST, Routes } = require("discord.js");
-const { loadPanelConfig } = require("../src/services/panel-config");
+const { loadPanelConfig, isCommandEnabled } = require("../src/services/panel-config");
 
 const { DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID } = process.env;
 if (!DISCORD_TOKEN || !DISCORD_CLIENT_ID) {
@@ -23,7 +23,7 @@ async function main() {
   }
   const config = await loadPanelConfig();
   const commands = commandModules
-    .filter((command) => config.commands[command.data.name] === true)
+    .filter((command) => isCommandEnabled(config, command.data.name))
     .map((command) => command.data.toJSON());
   const route = DISCORD_GUILD_ID
     ? Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID)
