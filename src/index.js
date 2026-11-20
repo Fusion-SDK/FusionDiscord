@@ -137,9 +137,19 @@ async function refreshPanelConfig() {
 client.once(Events.ClientReady, async (readyClient) => {
   console.log("Fusion Discord is online as " + readyClient.user.tag);
   await refreshPanelConfig();
-  await syncSlashCommands(client.fusionConfig);
+
+  // A Discord command-registration failure must never prevent server discovery.
+  try {
+    await syncSlashCommands(client.fusionConfig);
+  } catch (error) {
+    console.error("[COMMANDS] Could not synchronize slash commands:", error.message);
+  }
+
+  // Run panel synchronization independently so one failed integration does not
+  // stop the other startup tasks or their recurring refreshes.
   await syncGuildDirectory();
   await syncGuildResources();
+
   setInterval(refreshPanelConfig, 60_000).unref();
   setInterval(syncGuildDirectory, 60_000).unref();
   setInterval(syncGuildResources, 60_000).unref();
