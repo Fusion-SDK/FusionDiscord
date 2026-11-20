@@ -28,12 +28,14 @@ const { inspectMember } = require("./services/join-gate");
 const { createGuildSecurityClient } = require("./services/guild-security");
 const { createGuildDirectorySync } = require("./services/guild-directory");
 const { createGuildResourceSync } = require("./services/guild-resource-sync");
+const { createSecurityEventReporter } = require("./services/security-events");
 const antiRaid = createAntiRaidMonitor();
 const antiNuke = createAntiNukeMonitor();
 const autoMod = createAutoModMonitor();
 const guildSecurity = createGuildSecurityClient();
 const guildDirectorySync = createGuildDirectorySync();
 const guildResourceSync = createGuildResourceSync();
+const securityEvents = createSecurityEventReporter();
 let resourceSyncTimer = null;
 
 async function syncGuildResources() {
@@ -76,7 +78,10 @@ function monitorFor(map, guildId, config, factory, key) {
   return map.get(guildId);
 }
 
-async function sendSecurityAlert(guildId, channelId, content) {
+async function sendSecurityAlert(guildId, channelId, content, eventType) {
+  void securityEvents.report({ guildId, eventType, summary: content.replace(/^⚠️\s*/, "").slice(0, 240) }).catch((error) => {
+    console.error("[SECURITY] Could not record security event:", error.message);
+  });
   if (!channelId) return;
   try {
     const channel = await client.channels.fetch(channelId);
@@ -148,7 +153,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
         () => createAntiRaidMonitor({ threshold: config.antiRaid.joinThreshold, windowMs: config.antiRaid.windowSeconds * 1000 }), "raid");
       const result = monitor.recordJoin(member.guild.id);
       if (result.detected) await sendSecurityAlert(member.guild.id, config.antiRaid.alertChannelId,
-        "⚠️ Anti-Raid: detected " + result.count + " joins within " + config.antiRaid.windowSeconds + " seconds. No automatic action was taken.");
+        "⚠️ Anti-Raid: detected " + result.count + " joins within " + config.antiRaid.windowSeconds + " seconds. No automatic action was taken.", "anti_raid");
     }
     if (joinGateEnabled && config.joinGate.enabled) {
       const result = inspectMember(member, {
@@ -156,7 +161,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
         flagBots: config.joinGate.flagBots
       });
       if (result.flagged) await sendSecurityAlert(member.guild.id, config.joinGate.alertChannelId,
-        "⚠️ Join Gate: a new member matched: " + result.reasons.join(", ") + ". No automatic action was taken.");
+        "⚠️ Join Gate: a new member matched: " + result.reasons.join(", ") + ". No automatic action was taken.", "join_gate");
     }
   } catch (error) {
     console.error("[SECURITY] Join checks failed for guild " + member.guild.id + ":", error.message);
@@ -176,7 +181,7 @@ client.on(Events.MessageCreate, async (message) => {
       }), "automod");
     const flags = monitor.inspect(message);
     if (flags.length) await sendSecurityAlert(message.guild.id, config.autoMod.alertChannelId,
-      "⚠️ AutoMod: detected " + flags.join(", ") + " from a server member. No automatic action was taken.");
+      "⚠️ AutoMod: detected " + flags.join(", ") + " from a server member. No automatic action was taken.", "auto_mod");
   } catch (error) {
     console.error("[SECURITY] AutoMod check failed for guild " + message.guild.id + ":", error.message);
   }
@@ -202,7 +207,7 @@ for (const [eventName, action] of antiNukeEvents) {
         () => createAntiNukeMonitor({ threshold: config.antiNuke.eventThreshold, windowMs: config.antiNuke.windowSeconds * 1000 }), "nuke");
       const result = monitor.record(guild.id, action);
       if (result.detected) await sendSecurityAlert(guild.id, config.antiNuke.alertChannelId,
-        "⚠️ Anti-Nuke: repeated " + action + " events detected (" + result.count + " in " + config.antiNuke.windowSeconds + " seconds). Review the server audit log. No automatic action was taken.");
+        "⚠️ Anti-Nuke: repeated " + action + " events detected (" + result.count + " in " + config.antiNuke.windowSeconds + " seconds). Review the server audit log. No automatic action was taken.", "anti_nuke");
     } catch (error) {
       console.error("[SECURITY] Anti-Nuke check failed for guild " + guild.id + ":", error.message);
     }
