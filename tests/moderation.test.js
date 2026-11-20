@@ -28,7 +28,7 @@ test("prevents self, owner, equal-role, and higher-role moderation", () => {
     id,
     roles: { highest: { comparePositionTo: (other) => position - other.position } }
   });
-  assert.equal(canModerateTarget(actor, makeTarget("self", 1), "owner"), true);
+  assert.equal(canModerateTarget(actor, makeTarget("other", 1), "owner"), true);
   assert.equal(canModerateTarget(actor, makeTarget("actor", 1), "owner"), false);
   assert.equal(canModerateTarget(actor, makeTarget("owner", 0), "owner"), false);
   assert.equal(canModerateTarget(actor, makeTarget("same", 5), "owner"), false);
