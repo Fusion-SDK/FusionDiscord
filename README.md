@@ -51,7 +51,6 @@ The account-linking flow is hard-disabled in the bot and panel. `/account-verify
 | `DISCORD_TOKEN` | Yes | Bot token |
 | `DISCORD_CLIENT_ID` | Yes | Discord application ID |
 | `DISCORD_GUILD_ID` | No | Development server ID |
-| `FUSION_API_BASE_URL` | Yes for account commands | Supabase `discord-link` Edge Function URL |
 | `FUSION_PANEL_API_URL` | Yes for panel controls | Supabase `panel-admin` Edge Function URL |
 | `FUSION_BOT_API_SECRET` | Yes for backend features | Shared bot-to-backend secret |
 | `FUSION_LINKING_ENABLED` | Not used | Account linking is hard-disabled in code until the authenticated in-game flow is released |
