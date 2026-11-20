@@ -4,10 +4,12 @@ const assert = require("node:assert/strict");
 test("panel config accepts the known command flags and verification settings", () => {
   const { validateConfig } = require("../src/services/panel-config");
   const config = validateConfig({
-    commands: { ping: true, "account-verify": false, "account-status": true, "account-unlink": false },
-    verification: { enabled: false, verifiedRoleId: null }
+    commands: { ping: true, "account-verify": true, "account-status": true, "account-unlink": true },
+    verification: { enabled: true, verifiedRoleId: "12345678901234567" }
   });
   assert.equal(config.commands.ping, true);
+  assert.equal(config.verification.enabled, false);
+  assert.equal(config.verification.verifiedRoleId, null);
   assert.equal(config.commands["account-verify"], false);
   assert.equal(config.commands["account-status"], false);
   assert.equal(config.commands["account-unlink"], false);
