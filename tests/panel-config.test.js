@@ -4,10 +4,11 @@ const assert = require("node:assert/strict");
 test("panel config accepts the known command flags and verification settings", () => {
   const { validateConfig } = require("../src/services/panel-config");
   const config = validateConfig({
-    commands: { ping: true, "account-verify": true, "account-status": true, "account-unlink": true },
+    commands: { ping: true, warn: true, timeout: true, kick: true, ban: true, purge: true, "account-verify": true, "account-status": true, "account-unlink": true },
     verification: { enabled: true, verifiedRoleId: "12345678901234567" }
   });
   assert.equal(config.commands.ping, true);
+  for (const name of ["warn", "timeout", "kick", "ban", "purge"]) assert.equal(config.commands[name], true);
   assert.equal(config.verification.enabled, false);
   assert.equal(config.verification.verifiedRoleId, null);
   assert.equal(config.commands["account-verify"], false);
@@ -31,7 +32,7 @@ test("panel config rejects missing or non-boolean command flags", () => {
 test("panel config rejects malformed role IDs", () => {
   const { validateConfig } = require("../src/services/panel-config");
   assert.throws(() => validateConfig({
-    commands: { ping: true, "account-verify": false, "account-status": true, "account-unlink": true },
+    commands: { ping: true, warn: true, timeout: true, kick: true, ban: true, purge: true, "account-verify": false, "account-status": true, "account-unlink": true },
     verification: { enabled: true, verifiedRoleId: "not-a-discord-id" }
   }), /invalid verification settings/i);
 });
@@ -56,7 +57,7 @@ test("panel config request uses the bot secret and bot_get_config action", async
       ok: true,
       json: async () => ({
         config: {
-          commands: { ping: true, "account-verify": false, "account-status": true, "account-unlink": true },
+          commands: { ping: true, warn: true, timeout: true, kick: true, ban: true, purge: true, "account-verify": false, "account-status": true, "account-unlink": true },
           verification: { enabled: false, verifiedRoleId: null }
         }
       })
