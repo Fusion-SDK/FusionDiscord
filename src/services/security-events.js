@@ -6,7 +6,7 @@ function createSecurityEventReporter(options = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
 
   async function report(event) {
-    if (!event || typeof event.guildId !== "string" || !/^\\d{17,20}$/.test(event.guildId)) {
+    if (!event || typeof event.guildId !== "string" || !/^\d{17,20}$/.test(event.guildId)) {
       throw new TypeError("A valid Discord server ID is required.");
     }
     if (!EVENT_TYPES.has(event.eventType)) throw new TypeError("Unsupported security event type.");
