@@ -17,6 +17,12 @@ function createModerationCaseReporter(options = {}) {
       throw new TypeError("A valid target user ID is required.");
     }
     if (!ACTIONS.has(entry.action)) throw new TypeError("Unsupported moderation action.");
+    if ((entry.action === "purge" && entry.targetUserId != null) || (entry.action !== "purge" && (typeof entry.targetUserId !== "string" || !/^\\d{17,20}$/.test(entry.targetUserId)))) {
+      throw new TypeError("A valid target user ID is required for this action.");
+    }
+    if (entry.durationSeconds != null && (!Number.isInteger(entry.durationSeconds) || entry.durationSeconds < 1 || entry.durationSeconds > 2_419_200)) {
+      throw new TypeError("Duration must be between 1 second and 28 days.");
+    }
     if (typeof entry.reason !== "string" || !entry.reason.trim() || entry.reason.length > 500) {
       throw new TypeError("A moderation reason is required and must be 500 characters or fewer.");
     }
